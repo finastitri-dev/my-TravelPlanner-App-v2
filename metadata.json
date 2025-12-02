@@ -1,0 +1,5 @@
+{
+  "name": "AI Travel Planner",
+  "description": "A smart travel itinerary generator that creates detailed daily plans based on your destination, duration, and interests.",
+  "requestFramePermissions": []
+}

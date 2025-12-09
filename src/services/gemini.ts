@@ -1,77 +1,38 @@
-import { GoogleGenAI, Type, Schema } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { TravelPreferences, ItineraryResponse } from "../types";
 
-// AMBIL API KEY DENGAN CARA YANG BENAR UNTUK VITE + NETLIFY
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
 if (!apiKey) {
-  throw new Error("❌ GEMINI API KEY is missing! Add it in Netlify → Environment Variables → VITE_GEMINI_API_KEY");
+  throw new Error("❌ GEMINI API KEY is missing! Add it in Vercel → Settings → Environment Variables → VITE_GEMINI_API_KEY");
 }
 
-const ai = new GoogleGenAI({ apiKey });
-
-const itinerarySchema: Schema = {
-  type: Type.OBJECT,
-  properties: {
-    destination: { type: Type.STRING },
-    currency: { type: Type.STRING },
-    days: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          dayNumber: { type: Type.INTEGER },
-          theme: { type: Type.STRING },
-          activities: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                placeName: { type: Type.STRING },
-                description: { type: Type.STRING },
-                timeSlot: { type: Type.STRING },
-                cost: { type: Type.STRING },
-              },
-              required: ["placeName", "description", "timeSlot", "cost"],
-            },
-          },
-        },
-        required: ["dayNumber", "theme", "activities"],
-      },
-    },
-  },
-  required: ["destination", "currency", "days"],
-};
+const genAI = new GoogleGenerativeAI(apiKey);
 
 export const generateItinerary = async (
   prefs: TravelPreferences
 ): Promise<ItineraryResponse> => {
   try {
-    const prompt = `
-      Create a detailed ${prefs.duration}-day travel itinerary for ${prefs.destination}.
-      User Interests: ${prefs.interests}
-      Output JSON ONLY.
-    `;
-
-    const response = await ai.models.generateContent({
+    const model = genAI.getGenerativeModel({
       model: "gemini-2.5-flash",
-      contents: prompt,
-      config: {
-        systemInstruction:
-          "You are a world-class travel planner. Respond in JSON ONLY.",
-        responseMimeType: "application/json",
-        responseSchema: itinerarySchema,
+      generationConfig: {
         temperature: 0.4,
+        responseMimeType: "application/json",
       },
     });
 
-    if (response.text) {
-      return JSON.parse(response.text) as ItineraryResponse;
-    }
+    const prompt = `
+      Create a detailed ${prefs.duration}-day travel itinerary for ${prefs.destination}.
+      User Interests: ${prefs.interests}
+      Respond in valid JSON ONLY.
+    `;
 
-    throw new Error("No itinerary generated.");
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+
+    return JSON.parse(text) as ItineraryResponse;
   } catch (error) {
-    console.error("Error generating itinerary:", error);
-    throw error;
+    console.error("❌ Error generating itinerary:", error);
+    throw new Error("Failed to generate itinerary. Check your API key or model settings.");
   }
 };

@@ -1,29 +1,36 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { TravelPreferences, ItineraryResponse } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// AMBIL API KEY DENGAN CARA YANG BENAR UNTUK VITE + NETLIFY
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+
+if (!apiKey) {
+  throw new Error("❌ GEMINI API KEY is missing! Add it in Netlify → Environment Variables → VITE_GEMINI_API_KEY");
+}
+
+const ai = new GoogleGenAI({ apiKey });
 
 const itinerarySchema: Schema = {
   type: Type.OBJECT,
   properties: {
-    destination: { type: Type.STRING, description: "The confirmed destination name" },
-    currency: { type: Type.STRING, description: "The local currency symbol or code (e.g. JPY, USD, EUR)" },
+    destination: { type: Type.STRING },
+    currency: { type: Type.STRING },
     days: {
       type: Type.ARRAY,
       items: {
         type: Type.OBJECT,
         properties: {
           dayNumber: { type: Type.INTEGER },
-          theme: { type: Type.STRING, description: "A short theme title for the day" },
+          theme: { type: Type.STRING },
           activities: {
             type: Type.ARRAY,
             items: {
               type: Type.OBJECT,
               properties: {
                 placeName: { type: Type.STRING },
-                description: { type: Type.STRING, description: "Short engaging description of the activity" },
-                timeSlot: { type: Type.STRING, description: "Opening hours or recommended time slot (e.g., '09:00 - 10:30')" },
-                cost: { type: Type.STRING, description: "Estimated cost per person in local currency" },
+                description: { type: Type.STRING },
+                timeSlot: { type: Type.STRING },
+                cost: { type: Type.STRING },
               },
               required: ["placeName", "description", "timeSlot", "cost"],
             },
@@ -36,35 +43,33 @@ const itinerarySchema: Schema = {
   required: ["destination", "currency", "days"],
 };
 
-export const generateItinerary = async (prefs: TravelPreferences): Promise<ItineraryResponse> => {
+export const generateItinerary = async (
+  prefs: TravelPreferences
+): Promise<ItineraryResponse> => {
   try {
     const prompt = `
       Create a detailed ${prefs.duration}-day travel itinerary for ${prefs.destination}.
-      User Interests: ${prefs.interests}.
-      
-      Requirements:
-      1. Provide a realistic daily schedule.
-      2. Include estimated costs in local currency.
-      3. Mention opening/closing times where relevant in the timeSlot field.
-      4. Ensure the plan covers exactly ${prefs.duration} days.
+      User Interests: ${prefs.interests}
+      Output JSON ONLY.
     `;
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: prompt,
       config: {
-        systemInstruction: "You are a world-class expert Travel Planner AI. You provide detailed, logistical, and culturally rich travel itineraries. You must output JSON.",
+        systemInstruction:
+          "You are a world-class travel planner. Respond in JSON ONLY.",
         responseMimeType: "application/json",
         responseSchema: itinerarySchema,
-        temperature: 0.4, // Lower temperature for more grounded plans
+        temperature: 0.4,
       },
     });
 
     if (response.text) {
       return JSON.parse(response.text) as ItineraryResponse;
-    } else {
-      throw new Error("No itinerary generated.");
     }
+
+    throw new Error("No itinerary generated.");
   } catch (error) {
     console.error("Error generating itinerary:", error);
     throw error;

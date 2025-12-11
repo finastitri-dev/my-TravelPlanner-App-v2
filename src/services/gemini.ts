@@ -1,12 +1,10 @@
-import { GoogleGenerativeAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { TravelPreferences, ItineraryResponse } from "../types";
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
 if (!apiKey) {
-  throw new Error(
-    "❌ GEMINI API KEY is missing! Add it in Vercel → Settings → Environment Variables → VITE_GEMINI_API_KEY"
-  );
+  throw new Error("❌ Missing VITE_GEMINI_API_KEY in environment variables");
 }
 
 const genAI = new GoogleGenerativeAI(apiKey);
@@ -25,11 +23,8 @@ export const generateItinerary = async (
 
     const prompt = `
 You MUST return ONLY valid JSON.
-No markdown (no \`\`\`).
-No explanation.
-No reasoning steps.
 
-JSON FORMAT (STRICT):
+JSON FORMAT STRICT:
 {
   "destination": "",
   "currency": "IDR",
@@ -49,43 +44,23 @@ JSON FORMAT (STRICT):
   ]
 }
 
-Rules:
-- Output must be valid JSON only.
-- All fields must be filled.
-- Use simple clean strings.
-- No line breaks outside JSON.
-- No trailing commas.
-
-Now generate itinerary with:
 Destination: ${prefs.destination}
 Days: ${prefs.duration}
 Interests: ${prefs.interests}
 `;
 
     const result = await model.generateContent(prompt);
-    let text = result.response.text();
-
-    text = text.trim();
+    let text = result.response.text().trim();
 
     try {
-      return JSON.parse(text) as ItineraryResponse;
-    } catch (error) {
-      console.warn("⚠ JSON parsing failed. Attempting auto-repair...");
-
+      return JSON.parse(text);
+    } catch {
       const jsonMatch = text.match(/\{[\s\S]*\}$/);
-      if (jsonMatch) {
-        try {
-          return JSON.parse(jsonMatch[0]) as ItineraryResponse;
-        } catch {}
-      }
-
-      console.error("❌ RAW RESPONSE:", text);
-      throw new Error("Gemini returned invalid JSON format.");
+      if (jsonMatch) return JSON.parse(jsonMatch[0]);
+      throw new Error("Gemini returned invalid JSON.");
     }
   } catch (error) {
-    console.error("❌ Error generating itinerary:", error);
-    throw new Error(
-      "Failed to generate itinerary. Check your API key or model settings."
-    );
+    console.error("❌ Gemini Error:", error);
+    throw new Error("Failed to generate itinerary");
   }
 };

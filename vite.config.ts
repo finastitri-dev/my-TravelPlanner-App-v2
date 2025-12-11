@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  base: "./",
+  base: "./",   // WAJIB: biar CSS & assets ketemu di Vercel
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),

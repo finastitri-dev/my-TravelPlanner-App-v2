@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI } from "@google/genai";
 import { TravelPreferences, ItineraryResponse } from "../types";
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
@@ -62,20 +62,16 @@ Days: ${prefs.duration}
 Interests: ${prefs.interests}
 `;
 
-    // Request to Gemini
     const result = await model.generateContent(prompt);
     let text = result.response.text();
 
-    // Make sure there's no weird formatting
     text = text.trim();
 
-    // Try to parse direct JSON
     try {
       return JSON.parse(text) as ItineraryResponse;
     } catch (error) {
       console.warn("⚠ JSON parsing failed. Attempting auto-repair...");
 
-      // Auto-fix JSON if Gemini adds extra text
       const jsonMatch = text.match(/\{[\s\S]*\}$/);
       if (jsonMatch) {
         try {
